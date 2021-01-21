@@ -1,10 +1,12 @@
 import re
 import mail_handler
 import patreon_parser
+import requests
 from cloudscraper import CloudScraper
 
+
 def main():
-    mails = mail_handler.get_emails('SENTSINCE 10-Jan-2021')
+    mails = mail_handler.get_emails('SENTON 11-Jan-2021')
     mail_details = []
     post_urls = set()
     
@@ -14,7 +16,7 @@ def main():
         
         link_regex = r"https:\/\/www\.patreon\.com\/posts.*?(?=[\?\"\<\'])"
         
-        url_list = re.findall(link_regex,mail_obj["Text"])
+        url_list = re.findall(link_regex, mail_obj["Text"])
         
         post_urls.update(set(url_list))
         
@@ -29,7 +31,11 @@ def main():
         
         post_data.append(data)
         
-    print("\n".join(post_urls))
+    for post in post_data:
+        print(post["url"] + "\n")
+        for url in post["links"]:
+            print("\t" + url + "\n")
+
 
 if __name__ == "__main__":
     main()

@@ -7,7 +7,7 @@ from cloudscraper import CloudScraper
 
 
 def main():
-    mails = mail_handler.get_emails('SENTON 11-Jan-2021')
+    mails = mail_handler.get_emails('SENTON 22-Dec-2020')
     mail_details = []
     post_urls = set()
     
@@ -38,6 +38,8 @@ def main():
         print_data(post)
         for url in post["links"]:
             downloader = DownloadHandler(session)
+            downloader.author = post["author"]
+            downloader.post = post["title"]
             downloader.download_url(url)
         
     

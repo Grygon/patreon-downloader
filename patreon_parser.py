@@ -32,7 +32,10 @@ class ParseSession():
         for link in soup.findAll('a', attrs={'href': re.compile("^https?://")}):
             all_links.append(link.get('href'))
 
-        filters = [r".*patreon\.com\/file\?h\=.*", r".*dropbox\.com"]
+        filters = \
+            [r".*patreon\.com\/file\?h\=.*",
+             r".*dropboxusercontent\.com",
+             r".*dropbox\.com"]
         filtered_urls = []
 
         for f in filters:

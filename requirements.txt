@@ -1,0 +1,6 @@
+requests==2.25.1
+cloudscraper==1.2.52
+rfc6266==0.0.4
+pathvalidate==2.3.2
+beautifulsoup4==4.9.3
+python-dotenv==0.15.0

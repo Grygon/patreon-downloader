@@ -15,7 +15,7 @@ class ParseSession():
     session: CloudScraper
     url: str
 
-    def __init__(self, session: requests.session):
+    def __init__(self, session: CloudScraper):
         self.session = session
         self._load_cookies()
 
@@ -37,6 +37,9 @@ class ParseSession():
 
         for f in filters:
             filtered_urls += [l for l in all_links if re.match(f, l)]
+            
+        # Now we filter down to only links we can access
+        filtered_urls = [x for x in filtered_urls if self.session.head(x).ok]
 
         # Next up--turn content into list of URLs to download
         # And a list of tags for the page too
@@ -62,6 +65,7 @@ class ParseSession():
 
         tags = [x.id.split(";")[1] for x in unclean_tags]
         
+        date = campaign_obj.post.data.attributes.created_at.split("T")[0]
         
         arr = campaign_obj.post.included 
         for i in range(len(arr)):
@@ -69,7 +73,7 @@ class ParseSession():
                 author = arr[i].attributes.full_name
                 break
 
-        return {"links": filtered_urls, "title": title, "tags": tags, "object": campaign_obj, 'author': author}
+        return {"links": filtered_urls, "title": title, "tags": tags, "object": campaign_obj, 'author': author, 'date': date}
 
     def _need_cookies(self):
         # Put our headers here because it should be the first req of the session

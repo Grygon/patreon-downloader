@@ -1,6 +1,7 @@
 import re
 import mail_handler
-import patreon_parser
+from patreon_parser import ParseSession
+from download_handler import DownloadHandler
 import requests
 from cloudscraper import CloudScraper
 
@@ -25,7 +26,7 @@ def main():
     
     
     session = CloudScraper()
-    parse_session = patreon_parser.ParseSession(session)
+    parse_session = ParseSession(session)
     
     for url in post_urls:
         data = parse_session.parse_patreon_url(url)
@@ -35,16 +36,21 @@ def main():
         
     for post in post_data:
         print_data(post)
+        for url in post["links"]:
+            downloader = DownloadHandler(session)
+            downloader.download_url(url)
         
     
 
 def print_data(post):
     print(post["title"] + " by " + post["author"])
     print("Tags: " + ", ".join(post["tags"]))
+    print("Posted on: " + post["date"])
     print("URL: " + post["url"])
-    print("Files: ")
-    for url in post["links"]:
-        print("\t" + url)
+    if(post["links"]):
+        print("Files: ")
+        for url in post["links"]:
+            print("\t" + url)
     
 
 if __name__ == "__main__":

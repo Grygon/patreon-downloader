@@ -23,19 +23,29 @@ def main():
     post_data = []
     
     
-    session = patreon_parser.ParseSession(CloudScraper())
+    
+    session = CloudScraper()
+    parse_session = patreon_parser.ParseSession(session)
     
     for url in post_urls:
-        data = session.parse_patreon_url(url)
+        data = parse_session.parse_patreon_url(url)
         data["url"] = url
         
         post_data.append(data)
         
     for post in post_data:
-        print(post["url"] + "\n")
-        for url in post["links"]:
-            print("\t" + url + "\n")
+        print_data(post)
+        
+    
 
+def print_data(post):
+    print(post["title"] + " by " + post["author"])
+    print("Tags: " + ", ".join(post["tags"]))
+    print("URL: " + post["url"])
+    print("Files: ")
+    for url in post["links"]:
+        print("\t" + url)
+    
 
 if __name__ == "__main__":
     main()

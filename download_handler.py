@@ -1,7 +1,6 @@
 import requests
 import zipfile
 import re
-import rfc6266
 import cgi
 import os
 from cloudscraper import CloudScraper
@@ -64,7 +63,7 @@ class DownloadHandler():
 
         if ext == '.zip':
             self.handle_zip()
-            self.final_location = post_dir
+            self.final_location = self.post_dir
         else:
             self.final_location = self.download_location
 

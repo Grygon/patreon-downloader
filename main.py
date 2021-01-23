@@ -2,12 +2,27 @@ import re
 import mail_handler
 from patreon_parser import ParseSession
 from download_handler import DownloadHandler
+from post_manager import PostManager
 import requests
+import datetime
 from cloudscraper import CloudScraper
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
 
 
 def main():
-    mails = mail_handler.get_emails('SENTON 22-Dec-2020')
+    # By default grab 1 week of emails
+    date_1wk = 'SENTSINCE ' + (datetime.date.today() - datetime.timedelta(7)).strftime("%d-%b-%Y")
+    custom_datestring = 'SENTON 17-Jan-2021'
+    mails = mail_handler.get_emails(custom_datestring)
+    
+    post_manager_file = os.path.join(os.getenv("DIR"), os.getenv("POST_TRACKER_FILE"))
+    
+    manager = PostManager(post_manager_file)
+    
     mail_details = []
     post_urls = set()
     
@@ -32,7 +47,8 @@ def main():
         data = parse_session.parse_patreon_url(url)
         data["url"] = url
         
-        post_data.append(data)
+        if manager.should_update(data["id"], data["date"]):        
+            post_data.append(data)
         
     for post in post_data:
         print_data(post)
@@ -41,6 +57,8 @@ def main():
             downloader.author = post["author"]
             downloader.post = post["title"]
             downloader.download_url(url)
+        
+        manager.register_post(post["id"], post["date"])
         
     
 

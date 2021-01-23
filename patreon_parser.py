@@ -1,12 +1,11 @@
-from cloudscraper import CloudScraper
 import os
 import pickle
 import re
 import requests
+import json
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-import json
-
+from cloudscraper import CloudScraper
 
 load_dotenv()
 
@@ -26,7 +25,24 @@ class ParseSession():
         self.url = url
 
         req = self.session.get(self.url)
-        soup = BeautifulSoup(req.text, "html5lib")
+
+        # Find our data from the provided Object in our page
+        objects = []
+        for result in extract_json_objects(req.text):
+            objects.append(result)
+
+        # Filter out blanks because there are quite a few of them
+        objects = [i for i in objects if i != {}]
+
+        # Now find our "campaign" object which contains all the data we care about
+        campaign_obj = [i for i in filter(lambda x: 'campaign' in x, objects)]
+
+        if len(campaign_obj) > 1:
+            raise Exception("Too many campaign objects")
+        campaign_obj = dict2obj(campaign_obj[0])
+
+        soup = BeautifulSoup(
+            campaign_obj.post.data.attributes.content, "html5lib")
         all_links = []
 
         for link in soup.findAll('a', attrs={'href': re.compile("^https?://")}):
@@ -40,43 +56,40 @@ class ParseSession():
 
         for f in filters:
             filtered_urls += [l for l in all_links if re.match(f, l)]
-            
+
         # Now we filter down to only links we can access
         filtered_urls = [x for x in filtered_urls if self.session.head(x).ok]
 
         # Next up--turn content into list of URLs to download
         # And a list of tags for the page too
 
-        # Find our data from the provided Object in our page
-        objects = []
-        for result in extract_json_objects(soup.text):
-            objects.append(result)
-
-        # Filter out blanks because there are quite a few of them
-        objects = [i for i in objects if i != {}]
-
-        # Now find our "campaign" object which contains all the data we care about
-        campaign_obj = [i for i in filter(lambda x: 'campaign' in x, objects)]
-
-        if len(campaign_obj) > 1:
-            raise Exception("Too many campaign objects")
-        campaign_obj = dict2obj(campaign_obj[0])
-
         title = campaign_obj.post.data.attributes.title
+
+        post_id = campaign_obj.post.data.id
 
         unclean_tags = campaign_obj.post.data.relationships.user_defined_tags.data
 
         tags = [x.id.split(";")[1] for x in unclean_tags]
-        
-        date = campaign_obj.post.data.attributes.created_at.split("T")[0]
-        
-        arr = campaign_obj.post.included 
+
+        posted_date = campaign_obj.post.data.attributes.created_at.split("T")[0]
+        edited_date = campaign_obj.post.data.attributes.edited_at.split("T")[0]
+
+        arr = campaign_obj.post.included
         for i in range(len(arr)):
-            if hasattr(arr[i].attributes,'full_name'):
+            if hasattr(arr[i].attributes, 'full_name'):
                 author = arr[i].attributes.full_name
+                author_short = arr[i].attributes.url.split("/")[-1]
                 break
 
-        return {"links": filtered_urls, "title": title, "tags": tags, "object": campaign_obj, 'author': author, 'date': date}
+        return {"links": filtered_urls, 
+                "title": title, 
+                "tags": tags, 
+                "object": campaign_obj, 
+                'author': author, 
+                'author_short': author_short,
+                'posted_date': posted_date, 
+                'date': edited_date, 
+                'id': post_id}
 
     def _need_cookies(self):
         # Put our headers here because it should be the first req of the session

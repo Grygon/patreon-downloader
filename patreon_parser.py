@@ -13,10 +13,12 @@ load_dotenv()
 class ParseSession():
     session: CloudScraper
     url: str
+    permitted_creators: list
 
     def __init__(self, session: CloudScraper):
         self.session = session
         self._load_cookies()
+        self.permitted_creators = os.getenv('CREATORS').replace(" ","").split(",")
 
         if(self._need_cookies()):
             self._refresh_cookies()
@@ -41,6 +43,17 @@ class ParseSession():
             raise Exception("Too many campaign objects")
         campaign_obj = dict2obj(campaign_obj[0])
 
+        arr = campaign_obj.post.included
+        for i in range(len(arr)):
+            if hasattr(arr[i].attributes, 'full_name'):
+                author = arr[i].attributes.full_name
+                author_short = arr[i].attributes.url.split("/")[-1]
+                break
+            
+        if len(self.permitted_creators):
+            if author_short not in self.permitted_creators:
+                return {"author_short": author_short} 
+            
         soup = BeautifulSoup(
             campaign_obj.post.data.attributes.content, "html5lib")
         all_links = []
@@ -74,17 +87,10 @@ class ParseSession():
         posted_date = campaign_obj.post.data.attributes.created_at.split("T")[0]
         edited_date = campaign_obj.post.data.attributes.edited_at.split("T")[0]
 
-        arr = campaign_obj.post.included
-        for i in range(len(arr)):
-            if hasattr(arr[i].attributes, 'full_name'):
-                author = arr[i].attributes.full_name
-                author_short = arr[i].attributes.url.split("/")[-1]
-                break
 
         return {"links": filtered_urls, 
                 "title": title, 
                 "tags": tags, 
-                "object": campaign_obj, 
                 'author': author, 
                 'author_short': author_short,
                 'posted_date': posted_date, 

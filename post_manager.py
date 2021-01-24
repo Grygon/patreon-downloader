@@ -27,6 +27,6 @@ class PostManager():
         
     def should_update(self, post: str, date: str):
         if post in self.data:
-            return self.data[post] < date
+            return self.data[post]['date'] < date
         return True
         

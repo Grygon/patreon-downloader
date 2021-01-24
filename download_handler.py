@@ -39,10 +39,11 @@ class DownloadHandler():
         
 
     def format_dropbox(self):
-        self.url = self.url.split("?")[0] + "?dl=1"
+        self.url = re.sub(r'\?dl\=0', '?dl=1', self.url)
 
     def general_process(self):
         r = self.session.head(self.url, allow_redirects=True)
+        
 
         # This is very specific but w/e
         full_filename = sanitize_filename(cgi.parse_header(

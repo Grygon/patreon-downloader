@@ -13,11 +13,10 @@ import os
 load_dotenv()
 
 
-def main():
+def main(days_back_max=7, days_back_range=7):
     # By default grab 1 week of emails
-    date_1wk = 'SENTSINCE ' + (datetime.date.today() - datetime.timedelta(7)).strftime("%d-%b-%Y")
-    custom_datestring = 'SENTSINCE ' + (datetime.date.today() - datetime.timedelta(14)).strftime("%d-%b-%Y")
-    mails = mail_handler.get_emails(date_1wk)
+    datestring = 'SENTSINCE ' + (datetime.date.today() - datetime.timedelta(days_back_max)).strftime("%d-%b-%Y") + ' SENTBEFORE ' + (datetime.date.today() - datetime.timedelta(days_back_max - days_back_range)).strftime("%d-%b-%Y")
+    mails = mail_handler.get_emails(datestring)
     
     post_manager_file = os.path.join(os.getenv("DIR"), os.getenv("POST_TRACKER_FILE"))
     
@@ -48,10 +47,13 @@ def main():
     for url in post_urls:
         data = parse_session.parse_patreon_url(url)
         
+        if data is None:
+            continue
+        
         all_creators.add(data["author_short"])
         
         # It'll only have an ID if we did proper processing
-        if data is None or "id" not in data:
+        if "id" not in data:
             continue
         
         data["url"] = url
@@ -75,12 +77,13 @@ def main():
             downloader.download_url(url)
         
         manager.register_post(post["id"], post)
+        manager.save_data()
         
-    manager.save_data()
         
     
 
 def print_data(post):
+    print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
     print(post["title"] + " by " + post["author"])
     print("Tags: " + ", ".join(post["tags"]))
     print("Posted on: " + post["date"])
@@ -92,4 +95,9 @@ def print_data(post):
     
 
 if __name__ == "__main__":
-    main()
+    for i in range(24):
+        #continue
+        d = (i + 1) * 30 
+        print(str(i + 1) + " months back, through: " + (datetime.date.today() - datetime.timedelta(d)).strftime("%d-%b-%Y") + "--------------------------------")
+        main(d, 30)
+    #main(2,1)

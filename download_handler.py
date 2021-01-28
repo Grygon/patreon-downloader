@@ -44,7 +44,9 @@ class DownloadHandler():
     def general_process(self):
         r = self.session.head(self.url, allow_redirects=True)
         
-
+        if not r.ok:
+            return
+        
         # This is very specific but w/e
         full_filename = sanitize_filename(cgi.parse_header(
             r.headers.get('Content-Disposition'))[1]['filename'])

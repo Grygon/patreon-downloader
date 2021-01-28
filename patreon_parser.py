@@ -18,7 +18,8 @@ class ParseSession():
     def __init__(self, session: CloudScraper):
         self.session = session
         self._load_cookies()
-        self.permitted_creators = os.getenv('CREATORS').replace(" ","").split(",")
+        self.permitted_creators = os.getenv(
+            'CREATORS').replace(" ", "").split(",")
 
         if(self._need_cookies()):
             self._refresh_cookies()
@@ -27,6 +28,9 @@ class ParseSession():
         self.url = url
 
         req = self.session.get(self.url)
+        
+        if not req.ok:
+            return
 
         # Find our data from the provided Object in our page
         objects = []
@@ -41,6 +45,7 @@ class ParseSession():
 
         if len(campaign_obj) > 1:
             raise Exception("Too many campaign objects")
+            
         campaign_obj = dict2obj(campaign_obj[0])
 
         arr = campaign_obj.post.included
@@ -49,15 +54,21 @@ class ParseSession():
                 author = arr[i].attributes.full_name
                 author_short = arr[i].attributes.url.split("/")[-1]
                 break
+
+        # Check if they're a permitted creator, then check that we can view the post
+        if (len(self.permitted_creators) and (author_short not in self.permitted_creators)) \
+            or not campaign_obj.post.data.attributes.current_user_can_view:
+            return {"author_short": author_short}
+
+        if campaign_obj.post.data.attributes.post_type == 'poll':
+            return {"type": 'poll',
+                    "author_short": author_short}
             
-        if len(self.permitted_creators):
-            if author_short not in self.permitted_creators:
-                return {"author_short": author_short} 
-            
+
         soup = BeautifulSoup(
             campaign_obj.post.data.attributes.content, "html5lib")
-        all_links = []
-
+        all_links = self.get_attachments(campaign_obj)
+        
         for link in soup.findAll('a', attrs={'href': re.compile("^https?://")}):
             all_links.append(link.get('href'))
 
@@ -84,18 +95,53 @@ class ParseSession():
 
         tags = [x.id.split(";")[1] for x in unclean_tags]
 
-        posted_date = campaign_obj.post.data.attributes.created_at.split("T")[0]
+        posted_date = campaign_obj.post.data.attributes.created_at.split("T")[
+            0]
         edited_date = campaign_obj.post.data.attributes.edited_at.split("T")[0]
 
-
-        return {"links": filtered_urls, 
-                "title": title, 
-                "tags": tags, 
-                'author': author, 
+        data = {"links": filtered_urls,
+                "title": title,
+                "tags": tags,
+                'author': author,
                 'author_short': author_short,
-                'posted_date': posted_date, 
-                'date': edited_date, 
+                'posted_date': posted_date,
+                'date': edited_date,
                 'id': post_id}
+
+        data["type"] = self.determine_type(data)
+
+        return data
+
+    def determine_type(self, data):
+        types = {
+            "": 0.9,
+            "token": 0,
+            "map": 0,
+            "asset": 0,
+            "dungeondraft": 0
+        }
+
+        for tag in data["tags"]:
+            if "token" in tag:
+                types["token"] += 1
+            if "map" in tag or "encounter" in tag:
+                types["map"] += 1
+            if "asset" in tag:
+                types["asset"] += 1
+            if "dungeon draft" in tag or "dungeondraft" in tag:
+                types["asset"] += 5
+
+        return max(types)
+
+    def get_attachments(self, campaign_obj):
+        attachments = []
+        
+        arr = campaign_obj.post.included
+        for i in range(len(arr)):
+            if hasattr(arr[i], 'type') and arr[i].type == 'attachment':
+                attachments.append(arr[i].attributes.url)
+                
+        return attachments
 
     def _need_cookies(self):
         # Put our headers here because it should be the first req of the session

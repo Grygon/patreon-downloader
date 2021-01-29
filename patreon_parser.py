@@ -130,7 +130,7 @@ class ParseSession():
         
         self.weight_type(types,self.soup.text, .2, True)
         
-        return max(types)
+        return max(types, key=types.get)
             
             
     def weight_type(self, types, text, mod=1, count=False):

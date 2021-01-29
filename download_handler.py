@@ -46,7 +46,7 @@ class DownloadHandler():
         r = self.session.head(self.url, allow_redirects=True)
         
         if not r.ok:
-            return
+            return False
         
         # This is very specific but w/e
         full_filename = sanitize_filename(cgi.parse_header(
@@ -72,6 +72,8 @@ class DownloadHandler():
             self.final_location = self.download_location
 
         print("Downloaded " + str(self.filename))
+        
+        return True
 
     def handle_zip(self):
         with zipfile.ZipFile(self.download_location, 'r') as zip_ref:

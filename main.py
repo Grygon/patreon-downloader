@@ -70,13 +70,15 @@ def main(days_back_max=7, days_back_range=7):
         
     for post in post_data:
         print_data(post)
-        for url in post["links"]:
+        for i in range(len(post["links"])):
             downloader = DownloadHandler(session)
             downloader.author = post["author"]
             downloader.post = post["title"]
             downloader.post_type = post["type"]
-            downloader.download_url(url)
-            post["directory"] = downloader.post_dir
+            if downloader.download_url(post["links"][i]):
+                post["links"][i] = [post["links"][i], downloader.post_dir]
+            else:
+                post["links"][i] = [post["links"][i], "Failed"]
         
         manager.register_post(post["id"], post)
         manager.save_data()

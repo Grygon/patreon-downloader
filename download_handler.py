@@ -18,6 +18,7 @@ class DownloadHandler():
     final_location: str
     filename: str
     post_dir: str
+    post_type: str
     
     author = "Unknown Author"
     post = "Unknown Post"
@@ -52,7 +53,7 @@ class DownloadHandler():
             r.headers.get('Content-Disposition'))[1]['filename'])
         self.filename, ext = os.path.splitext(full_filename)
         
-        self.post_dir = os.path.join(directory, sanitize_filename(self.author), sanitize_filename(self.post))
+        self.post_dir = os.path.join(directory, sanitize_filename(type_to_dir(self.post_type)), sanitize_filename(self.author), sanitize_filename(self.post))
 
         self.download_location = os.path.join(self.post_dir, full_filename)
 
@@ -76,3 +77,16 @@ class DownloadHandler():
         with zipfile.ZipFile(self.download_location, 'r') as zip_ref:
             zip_ref.extractall(self.post_dir)
         os.remove(self.download_location)
+        
+def type_to_dir(t):
+    d = {
+        "token":"Tokens",
+        "map":"Maps",
+        "asset":"Assets",
+        "dungeondraft":"DungeonDraft"
+    }
+    
+    if t in d:    
+        return d[t]
+    else:
+        return "Unsorted"

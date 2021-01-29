@@ -74,7 +74,9 @@ def main(days_back_max=7, days_back_range=7):
             downloader = DownloadHandler(session)
             downloader.author = post["author"]
             downloader.post = post["title"]
+            downloader.post_type = post["type"]
             downloader.download_url(url)
+            post["directory"] = downloader.post_dir
         
         manager.register_post(post["id"], post)
         manager.save_data()
@@ -88,6 +90,7 @@ def print_data(post):
     print("Tags: " + ", ".join(post["tags"]))
     print("Posted on: " + post["date"])
     print("URL: " + post["url"])
+    print("Type: " + post["type"])
     if(post["links"]):
         print("Files: ")
         for url in post["links"]:

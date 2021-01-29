@@ -14,6 +14,7 @@ class ParseSession():
     session: CloudScraper
     url: str
     permitted_creators: list
+    soup: BeautifulSoup
 
     def __init__(self, session: CloudScraper):
         self.session = session
@@ -65,11 +66,11 @@ class ParseSession():
                     "author_short": author_short}
             
 
-        soup = BeautifulSoup(
+        self.soup = BeautifulSoup(
             campaign_obj.post.data.attributes.content, "html5lib")
         all_links = self.get_attachments(campaign_obj)
         
-        for link in soup.findAll('a', attrs={'href': re.compile("^https?://")}):
+        for link in self.soup.findAll('a', attrs={'href': re.compile("^https?://")}):
             all_links.append(link.get('href'))
 
         filters = \
@@ -118,20 +119,58 @@ class ParseSession():
             "token": 0,
             "map": 0,
             "asset": 0,
-            "dungeondraft": 0
+            "dungeondraft": 0,
+            "adventure":0
         }
 
         for tag in data["tags"]:
-            if "token" in tag:
-                types["token"] += 1
-            if "map" in tag or "encounter" in tag:
-                types["map"] += 1
-            if "asset" in tag:
-                types["asset"] += 1
-            if "dungeon draft" in tag or "dungeondraft" in tag:
-                types["asset"] += 5
-
+            self.weight_type(types,tag)
+        
+        self.weight_type(types,data["title"])
+        
+        self.weight_type(types,self.soup.text, .2, True)
+        
         return max(types)
+            
+            
+    def weight_type(self, types, text, mod=1, count=False):
+        formatted = text.lower()
+        
+        c = 1
+        
+        if "token" in formatted:
+            if count:
+                c = formatted.count("token")   
+            types["token"] += 1*mod*c
+        if "map" in formatted or "encounter" in formatted:
+            if count:
+                # I don't think we want to count encounters here... eh...... let's try it
+                c = formatted.count("map") + formatted.count("encounter")
+            types["map"] += 1*mod*c
+        if "asset" in formatted or "empty room" in formatted:
+            if count:
+                # Putting "Empty Rooms" under assets since they really aren't full maps
+                c = formatted.count("asset") + formatted.count("empty room") 
+            types["asset"] += 1*mod*c
+        if "dungeon draft" in formatted or "dungeondraft" in formatted:
+            if count:
+                c = formatted.count("dungeondraft") + formatted.count("dungeon draft")
+            types["dungeondraft"] += 5*mod*c
+        if "adventure" in formatted or "module" in formatted:
+            if count:
+                c = formatted.count("adventure") + formatted.count("module")
+            # We're accidentally picking up on adventurer...
+            if "adventurer" in formatted:
+                if count:
+                    c -= .5*formatted.count("adventurer")
+                else:
+                    # If we aren't counting I can't think of a good way to handle this
+                    return
+                
+            # If it's an adventure it probably references maps
+            types["adventure"] += .3*mod*c
+            types["map"] -= .1*mod*c
+
 
     def get_attachments(self, campaign_obj):
         attachments = []

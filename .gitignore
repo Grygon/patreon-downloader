@@ -3,3 +3,4 @@ __pycache__
 cookies
 geckodriver.log
 content
+downloaded_content

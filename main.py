@@ -5,6 +5,7 @@ from download_handler import DownloadHandler
 from post_manager import PostManager
 import requests
 import datetime
+import time
 from cloudscraper import CloudScraper
 from dotenv import load_dotenv
 import os
@@ -46,22 +47,46 @@ def main(days_back_max=7, days_back_range=7):
     all_creators = set()
     
     for url in post_urls:
-        data = parse_session.parse_patreon_url(url)
+        count = 0
+        done = False
+        while count <= 10:
+            count += 1
+            try:
+                data = parse_session.parse_patreon_url(url)
+                
+                if data is None:
+                    done = True
+                    break
+                
+                all_creators.add(data["author_short"])
+                
+                # It'll only have an ID if we did proper processing
+                if "id" not in data:
+                    done = True
+                    break
+                
+                data["url"] = url
+                
+                
+                if manager.should_update(data["id"], data["date"]):        
+                    post_data.append(data)
+                else:
+                    print("Skipping, already processed post " + data["title"])
+                
+                done = True
+                break
+            except requests.exceptions.ConnectionError:
+                print("Failed to connect to Patreon while parsing URL: " + url)
+                print("Sleeping for %s seconds" % str((count + 1) * 10))
+                time.sleep((count + 1) * 10)
+                continue
+            print("If you're here something went wrong")            
         
-        if data is None:
+        # Idk a better way to do this...
+        if done:
             continue
         
-        all_creators.add(data["author_short"])
-        
-        # It'll only have an ID if we did proper processing
-        if "id" not in data:
-            continue
-        
-        data["url"] = url
-        
-        
-        if manager.should_update(data["id"], data["date"]):        
-            post_data.append(data)
+        raise ConnectionError("Failed to connect to Patreon")
             
     permitted_creators = os.getenv('CREATORS').replace(" ","").split(",")
             
@@ -101,7 +126,7 @@ def print_data(post):
     
 
 if __name__ == "__main__":
-    for i in range(24):
+    for i in range(36):
         d = (i + 1) * 30 
         print(str(i + 1) + " months back, through: " + (datetime.date.today() - datetime.timedelta(d)).strftime("%d-%b-%Y") + "--------------------------------")
         main(d, 30)

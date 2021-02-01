@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from cloudscraper import CloudScraper
 from urllib.parse import urlparse
 import time
+import validators
 
 load_dotenv()
 
@@ -28,11 +29,17 @@ class ParseSession():
             self._refresh_cookies()
 
     def parse_patreon_url(self, url: str):
+                
         self.url = url
 
         is_redir = True
 
         while is_redir:
+            # Let's just double check we actually got a URL
+            if not validators.url(self.url):
+                print("URL is malformed: " + self.url)
+                return
+            
             req = self.session.head(self.url)
 
             if not req.ok:

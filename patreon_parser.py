@@ -6,6 +6,8 @@ import json
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from cloudscraper import CloudScraper
+from urllib.parse import urlparse
+import time
 
 load_dotenv()
 
@@ -28,8 +30,31 @@ class ParseSession():
     def parse_patreon_url(self, url: str):
         self.url = url
 
-        req = self.session.get(self.url)
-        
+        is_redir = True
+
+        while is_redir:
+            req = self.session.head(self.url)
+
+            if not req.ok:
+                return
+
+            is_redir = req.is_redirect
+
+            if is_redir:
+                self.url = req.next.url
+
+        # For older mailgun URLs where we don't know where we'll end up,
+        # validate we end at patreon
+        post_regex = r"patreon\.com\/posts"
+        if not re.search(string=self.url, pattern=post_regex):
+            return
+
+        try:
+            req = self.session.get(self.url)
+        except requests.exceptions.ConnectionError:
+            return
+
+        # Double check all is well at our final destination
         if not req.ok:
             return
 
@@ -44,9 +69,9 @@ class ParseSession():
         # Now find our "campaign" object which contains all the data we care about
         campaign_obj = [i for i in filter(lambda x: 'campaign' in x, objects)]
 
-        if len(campaign_obj) > 1:
-            raise Exception("Too many campaign objects")
-            
+        if len(campaign_obj) != 1:
+            raise Exception("Invalid Campaign Object--not a valid post")
+
         campaign_obj = dict2obj(campaign_obj[0])
 
         arr = campaign_obj.post.included
@@ -64,12 +89,11 @@ class ParseSession():
         if campaign_obj.post.data.attributes.post_type == 'poll':
             return {"type": 'poll',
                     "author_short": author_short}
-            
 
         self.soup = BeautifulSoup(
             campaign_obj.post.data.attributes.content, "html5lib")
         all_links = self.get_attachments(campaign_obj)
-        
+
         for link in self.soup.findAll('a', attrs={'href': re.compile("^https?://")}):
             all_links.append(link.get('href'))
 
@@ -120,27 +144,26 @@ class ParseSession():
             "map": 0,
             "asset": 0,
             "dungeondraft": 0,
-            "adventure":0
+            "adventure": 0
         }
 
         for tag in data["tags"]:
-            self.weight_type(types,tag)
-        
-        self.weight_type(types,data["title"])
-        
-        self.weight_type(types,self.soup.text, .2, True)
-        
+            self.weight_type(types, tag)
+
+        self.weight_type(types, data["title"])
+
+        self.weight_type(types, self.soup.text, .2, True)
+
         return max(types, key=types.get)
-            
-            
+
     def weight_type(self, types, text, mod=1, count=False):
         formatted = text.lower()
-        
+
         c = 1
-        
+
         if "token" in formatted:
             if count:
-                c = formatted.count("token")   
+                c = formatted.count("token")
             types["token"] += 1*mod*c
         if "map" in formatted or "encounter" in formatted:
             if count:
@@ -150,11 +173,12 @@ class ParseSession():
         if "asset" in formatted or "empty room" in formatted:
             if count:
                 # Putting "Empty Rooms" under assets since they really aren't full maps
-                c = formatted.count("asset") + formatted.count("empty room") 
+                c = formatted.count("asset") + formatted.count("empty room")
             types["asset"] += 1*mod*c
         if "dungeon draft" in formatted or "dungeondraft" in formatted:
             if count:
-                c = formatted.count("dungeondraft") + formatted.count("dungeon draft")
+                c = formatted.count("dungeondraft") + \
+                                    formatted.count("dungeon draft")
             types["dungeondraft"] += 5*mod*c
         if "adventure" in formatted or "module" in formatted:
             if count:
@@ -166,29 +190,36 @@ class ParseSession():
                 else:
                     # If we aren't counting I can't think of a good way to handle this
                     return
-                
+
             # If it's an adventure it probably references maps
             types["adventure"] += .3*mod*c
             types["map"] -= .1*mod*c
 
-
     def get_attachments(self, campaign_obj):
         attachments = []
-        
+
         arr = campaign_obj.post.included
         for i in range(len(arr)):
             if hasattr(arr[i], 'type') and arr[i].type == 'attachment':
                 attachments.append(arr[i].attributes.url)
-                
+
         return attachments
 
     def _need_cookies(self):
-        # Put our headers here because it should be the first req of the session
+        # Do some looping in case Patreon doesn't like us anymore
+        count = 0
+        while count <= 10:
+            count += 1
+            try:
+                return self.session.get('https://www.patreon.com/user').url == 'https://www.patreon.com/login'
+            except ConnectionError:
+                print("Failed to check for login, sleeping for %s seconds" % str((count + 1) * 10))
+                time.sleep((count + 1) * 10)
 
-        return self.session.get('https://www.patreon.com/user').url == 'https://www.patreon.com/login'
+        raise ConnectionError("Failed to connect to Patreon")
 
     def _refresh_cookies(self):
-        data = '{"data":{"type":"user","attributes":{"email":"%s","password":"%s"},"relationships":{}}}' % (
+        data='{"data":{"type":"user","attributes":{"email":"%s","password":"%s"},"relationships":{}}}' % (
             os.getenv('PATREON_EMAIL'), os.getenv('PATREON_PWD'))
 
         self.session.post(
@@ -211,17 +242,17 @@ def extract_json_objects(text, decoder=json.JSONDecoder()):
     of a parent JSON object.
 
     """
-    pos = 0
+    pos=0
     while True:
-        match = text.find('{', pos)
+        match=text.find('{', pos)
         if match == -1:
             break
         try:
-            result, index = decoder.raw_decode(text[match:])
+            result, index=decoder.raw_decode(text[match:])
             yield result
-            pos = match + index
+            pos=match + index
         except ValueError:
-            pos = match + 1
+            pos=match + 1
 
 # Setting up dict->obj conversion
 

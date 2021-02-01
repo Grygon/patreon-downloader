@@ -48,9 +48,12 @@ class DownloadHandler():
         if not r.ok:
             return False
         
-        # This is very specific but w/e
-        full_filename = sanitize_filename(cgi.parse_header(
-            r.headers.get('Content-Disposition'))[1]['filename'])
+        # This is very specific but w/e. IF it fails, we aren't downloading a file
+        try:
+            full_filename = sanitize_filename(cgi.parse_header(
+                r.headers.get('Content-Disposition'))[1]['filename'])
+        except KeyError:
+            return False
         self.filename, ext = os.path.splitext(full_filename)
         
         self.post_dir = os.path.join(directory, sanitize_filename(type_to_dir(self.post_type)), sanitize_filename(self.author), sanitize_filename(self.post))

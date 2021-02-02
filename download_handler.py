@@ -1,4 +1,3 @@
-import requests
 import zipfile
 import re
 import cgi
@@ -19,7 +18,7 @@ class DownloadHandler():
     filename: str
     post_dir: str
     post_type: str
-    
+
     author = "Unknown Author"
     post = "Unknown Post"
 
@@ -32,22 +31,21 @@ class DownloadHandler():
         self.url = url
 
         domain = url.split(".")[1]
-        
+
         if domain == "dropbox":
             self.format_dropbox()
-        
+
         self.general_process()
-        
 
     def format_dropbox(self):
         self.url = re.sub(r'\?dl\=0', '?dl=1', self.url)
 
     def general_process(self):
         r = self.session.head(self.url, allow_redirects=True)
-        
+
         if not r.ok:
             return False
-        
+
         # This is very specific but w/e. IF it fails, we aren't downloading a file
         try:
             full_filename = sanitize_filename(cgi.parse_header(
@@ -55,14 +53,15 @@ class DownloadHandler():
         except KeyError:
             return False
         self.filename, ext = os.path.splitext(full_filename)
-        
-        self.post_dir = os.path.join(directory, sanitize_filename(type_to_dir(self.post_type)), sanitize_filename(self.author), sanitize_filename(self.post))
+
+        self.post_dir = os.path.join(directory, sanitize_filename(type_to_dir(
+            self.post_type)), sanitize_filename(self.author), sanitize_filename(self.post))
 
         self.download_location = os.path.join(self.post_dir, full_filename)
 
         if not os.path.exists(self.post_dir):
             os.makedirs(self.post_dir)
-        
+
         if not os.path.isfile(self.download_location):
             r = self.session.get(self.url, allow_redirects=True)
 
@@ -75,23 +74,24 @@ class DownloadHandler():
             self.final_location = self.download_location
 
         print("Downloaded " + str(self.filename))
-        
+
         return True
 
     def handle_zip(self):
         with zipfile.ZipFile(self.download_location, 'r') as zip_ref:
             zip_ref.extractall(self.post_dir)
         os.remove(self.download_location)
-        
+
+
 def type_to_dir(t):
     d = {
-        "token":"Tokens",
-        "map":"Maps",
-        "asset":"Assets",
-        "dungeondraft":"DungeonDraft"
+        "token": "Tokens",
+        "map": "Maps",
+        "asset": "Assets",
+        "dungeondraft": "DungeonDraft"
     }
-    
-    if t in d:    
+
+    if t in d:
         return d[t]
     else:
         return "Unsorted"

@@ -3,12 +3,11 @@ import pickle
 import re
 import requests
 import json
+import time
+import validators
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from cloudscraper import CloudScraper
-from urllib.parse import urlparse
-import time
-import validators
 
 load_dotenv()
 
@@ -29,7 +28,7 @@ class ParseSession():
             self._refresh_cookies()
 
     def parse_patreon_url(self, url: str):
-                
+
         self.url = url
 
         is_redir = True
@@ -39,7 +38,7 @@ class ParseSession():
             if not validators.url(self.url):
                 print("URL is malformed: " + self.url)
                 return
-            
+
             req = self.session.head(self.url)
 
             if not req.ok:
@@ -90,7 +89,7 @@ class ParseSession():
 
         # Check if they're a permitted creator, then check that we can view the post
         if (len(self.permitted_creators) and (author_short not in self.permitted_creators)) \
-            or not campaign_obj.post.data.attributes.current_user_can_view:
+                or not campaign_obj.post.data.attributes.current_user_can_view:
             return {"author_short": author_short}
 
         if campaign_obj.post.data.attributes.post_type == 'poll':
@@ -177,15 +176,16 @@ class ParseSession():
                 # I don't think we want to count encounters here... eh...... let's try it
                 c = formatted.count("map") + formatted.count("encounter")
             types["map"] += 1*mod*c
-        if "asset" in formatted or "empty room" in formatted:
+        if "asset" in formatted or "empty room" in formatted or "prop" in formatted:
             if count:
                 # Putting "Empty Rooms" under assets since they really aren't full maps
-                c = formatted.count("asset") + formatted.count("empty room")
+                c = formatted.count(
+                    "asset") + formatted.count("empty room") + formatted.count("prop")
             types["asset"] += 1*mod*c
         if "dungeon draft" in formatted or "dungeondraft" in formatted:
             if count:
                 c = formatted.count("dungeondraft") + \
-                                    formatted.count("dungeon draft")
+                    formatted.count("dungeon draft")
             types["dungeondraft"] += 5*mod*c
         if "adventure" in formatted or "module" in formatted:
             if count:
@@ -220,13 +220,14 @@ class ParseSession():
             try:
                 return self.session.get('https://www.patreon.com/user').url == 'https://www.patreon.com/login'
             except ConnectionError:
-                print("Failed to check for login, sleeping for %s seconds" % str((count + 1) * 10))
+                print("Failed to check for login, sleeping for %s seconds" %
+                      str((count + 1) * 10))
                 time.sleep((count + 1) * 10)
 
         raise ConnectionError("Failed to connect to Patreon")
 
     def _refresh_cookies(self):
-        data='{"data":{"type":"user","attributes":{"email":"%s","password":"%s"},"relationships":{}}}' % (
+        data = '{"data":{"type":"user","attributes":{"email":"%s","password":"%s"},"relationships":{}}}' % (
             os.getenv('PATREON_EMAIL'), os.getenv('PATREON_PWD'))
 
         self.session.post(
@@ -249,17 +250,17 @@ def extract_json_objects(text, decoder=json.JSONDecoder()):
     of a parent JSON object.
 
     """
-    pos=0
+    pos = 0
     while True:
-        match=text.find('{', pos)
+        match = text.find('{', pos)
         if match == -1:
             break
         try:
-            result, index=decoder.raw_decode(text[match:])
+            result, index = decoder.raw_decode(text[match:])
             yield result
-            pos=match + index
+            pos = match + index
         except ValueError:
-            pos=match + 1
+            pos = match + 1
 
 # Setting up dict->obj conversion
 

@@ -8,8 +8,8 @@ from imap_tools import MailBox, AND
 load_dotenv()
 
 cwd = os.getcwd()
-EMAIL_UN = os.getenv('APP_EMAIL')
-EMAIL_PW = os.getenv('APP_PWD')
+EMAIL_UN = os.getenv('EMAIL_EMAIL')
+EMAIL_PW = os.getenv('EMAIL_PWD')
 
 
 def get_emails(days_back_max, days_back_range):

@@ -42,6 +42,9 @@ class ParseSession():
             req = self.session.head(self.url)
 
             if not req.ok:
+                print("Unable to access URL: " + self.url)
+                if not 'x-patreon-uuid' in req.headers:
+                    raise Exception("You hit a Cloudflare CAPTCHA. Please open the URL in your browser, wait a while, and try later.")
                 return
 
             is_redir = req.is_redirect
@@ -97,7 +100,7 @@ class ParseSession():
                     "author_short": author_short}
 
         self.soup = BeautifulSoup(
-            campaign_obj.post.data.attributes.content, "html5lib")
+            campaign_obj.post.data.attributes.content, "html.parser")
         all_links = self.get_attachments(campaign_obj)
 
         for link in self.soup.findAll('a', attrs={'href': re.compile("^https?://")}):

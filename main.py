@@ -2,11 +2,11 @@ import datetime
 import time
 import os
 import mail_handler
-from requests import exceptions
+from requests import exceptions, Session
 from patreon_parser import ParseSession
 from download_handler import DownloadHandler
 from post_manager import PostManager
-from cloudscraper import CloudScraper
+from cloudscraper import CloudScraper, create_scraper
 from dotenv import load_dotenv
 
 
@@ -16,13 +16,23 @@ post_manager_file = os.path.join(
     os.getenv("DIR"), os.getenv("POST_TRACKER_FILE"))
 
 manager = PostManager(post_manager_file)
-session = CloudScraper()
-parse_session = ParseSession(session)
+session: CloudScraper
+parse_session: ParseSession
 
 
 def main(days_back_max=7, days_back_range=7):
+    
+    session = create_scraper()     
+    
+    if os.getenv("PROXY_URL"):
+        proxy_str = ('socks5://%s:%s@%s:%s' % (os.getenv("PROXY_USER"),os.getenv("PROXY_PASS"),os.getenv("PROXY_URL"),os.getenv("PROXY_PORT")))
+        session.proxies.update({'http':proxy_str,'https':proxy_str})
 
     post_urls = handle_mail(days_back_max, days_back_range)
+
+    global parse_session 
+    
+    parse_session = ParseSession(session)
 
     post_data = handle_posts(post_urls)
 
@@ -139,9 +149,11 @@ def print_data(post):
 
 
 if __name__ == "__main__":
-    for i in range(48)[::-1]:
-        d = (i + 1) * 30
-        print(str(i + 1) + " months back, through: " + (datetime.date.today() -
-                                                        datetime.timedelta(d)).strftime("%d-%b-%Y") + "--------------------------------")
-        main(d, 30)
-    # main(2,1)
+    
+    # For processing backlog
+    #for i in range(48)[::-1]:
+    #    d = (i + 1) * 30
+    #    print(str(i + 1) + " months back, through: " + (datetime.date.today() -
+    #                                                    datetime.timedelta(d)).strftime("%d-%b-%Y") + "--------------------------------")
+    #    main(d, 30)
+    main()

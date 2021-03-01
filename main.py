@@ -8,6 +8,7 @@ from download_handler import DownloadHandler
 from post_manager import PostManager
 from cloudscraper import CloudScraper, create_scraper
 from dotenv import load_dotenv
+from pathvalidate import sanitize_filename
 
 
 load_dotenv()
@@ -16,13 +17,11 @@ post_manager_file = os.path.join(
     os.getenv("DIR"), os.getenv("POST_TRACKER_FILE"))
 
 manager = PostManager(post_manager_file)
-session: CloudScraper
+session= create_scraper()  
 parse_session: ParseSession
 
 
-def main(days_back_max=7, days_back_range=7):
-    
-    session = create_scraper()     
+def main(days_back_max=7, days_back_range=8):
     
     if os.getenv("PROXY_URL"):
         proxy_str = ('socks5://%s:%s@%s:%s' % (os.getenv("PROXY_USER"),os.getenv("PROXY_PASS"),os.getenv("PROXY_URL"),os.getenv("PROXY_PORT")))
@@ -131,6 +130,13 @@ def handle_download(post_data):
             else:
                 post["links"][i] = [post["links"][i], "Failed"]
 
+        if(downloader):
+            create_shortcut({
+                'url': post['url'], 
+                'folder': downloader.post_dir,
+                'post': sanitize_filename(post['title'])
+                })
+
         manager.register_post(post["id"], post)
         manager.save_data()
 
@@ -146,6 +152,20 @@ def print_data(post):
         print("Files: ")
         for url in post["links"]:
             print("\t" + url)
+            
+def create_shortcut(data):    
+    content = ('''
+    <html>
+    <head>
+    <meta http-equiv="refresh" content="0; url=%s" />
+    </head>
+    <body>
+    </body>
+    </html>
+    ''' % data['url'])
+    
+    with open(os.path.join(data['folder'], data["post"] + '.html'), 'w') as f:
+        f.write(content)
 
 
 if __name__ == "__main__":

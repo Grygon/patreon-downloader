@@ -63,12 +63,16 @@ class DownloadHandler():
             os.makedirs(self.post_dir)
 
         if not os.path.isfile(self.download_location):
-            r = self.session.get(self.url, allow_redirects=True)
-
-            open(self.download_location, 'wb').write(r.content)
+            self.download_file(self.url, self.download_location)
 
         if ext == '.zip':
-            self.handle_zip()
+            try:
+                self.handle_zip()
+            except zipfile.BadZipFile:
+                print("ZIP was malformed, attempting re-download...")
+                self.download_file(self.url, self.download_location)
+                self.handle_zip()
+                
             self.final_location = self.post_dir
         else:
             self.final_location = self.download_location
@@ -81,7 +85,12 @@ class DownloadHandler():
         with zipfile.ZipFile(self.download_location, 'r') as zip_ref:
             zip_ref.extractall(self.post_dir)
         os.remove(self.download_location)
-
+            
+    def download_file(self, url, save_path, chunk_size=128):
+        r = self.session.get(url, stream=True, allow_redirects=True)
+        with open(save_path, 'wb') as fd:
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                fd.write(chunk)
 
 def type_to_dir(t):
     d = {

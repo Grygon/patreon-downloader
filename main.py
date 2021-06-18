@@ -16,7 +16,11 @@ load_dotenv()
 post_manager_file = os.path.join(
     os.getenv("DIR"), os.getenv("POST_TRACKER_FILE"))
 
+error_manager_file = os.path.join(
+    os.getenv("DIR"), os.getenv("ERROR_TRACKER_FILE"))
+
 manager = PostManager(post_manager_file)
+error_manager = PostManager(error_manager_file)
 session= create_scraper()  
 parse_session: ParseSession
 
@@ -119,26 +123,37 @@ def handle_posts(post_urls):
 
 def handle_download(post_data):
     for post in post_data:
-        print_data(post)
-        for i in range(len(post["links"])):
-            downloader = DownloadHandler(session)
-            downloader.author = post["author"]
-            downloader.post = post["title"]
-            downloader.post_type = post["type"]
-            if downloader.download_url(post["links"][i]):
-                post["links"][i] = [post["links"][i], downloader.post_dir]
-            else:
-                post["links"][i] = [post["links"][i], "Failed"]
+        try:
+            print_data(post)
+            
+            downloader = None
+            
+            for i in range(len(post["links"])):
+                downloader = DownloadHandler(session)
+                downloader.author = post["author"]
+                downloader.post = post["title"]
+                downloader.post_type = post["type"]
+                if downloader.download_url(post["links"][i]):
+                    post["links"][i] = [post["links"][i], downloader.post_dir]
+                else:
+                    post["links"][i] = [post["links"][i], "Failed"]
 
-        if(downloader):
-            create_shortcut({
-                'url': post['url'], 
-                'folder': downloader.post_dir,
-                'post': sanitize_filename(post['title'])
-                })
+            if not (downloader is None):
+                create_shortcut({
+                    'url': post['url'], 
+                    'folder': downloader.post_dir,
+                    'post': sanitize_filename(post['title'])
+                    })
 
-        manager.register_post(post["id"], post)
-        manager.save_data()
+            manager.register_post(post["id"], post)
+            manager.save_data()
+        except Exception as e:
+            error_manager.register_post(post["id"], post)
+            error_manager.save_data()
+            print(e)
+            print("Post processing failed! Continuing to process posts...")
+            print("Post: " + post["title"])
+            print("Dump: " + str(post))
 
 
 def print_data(post):
@@ -176,4 +191,4 @@ if __name__ == "__main__":
     #    print(str(i + 1) + " months back, through: " + (datetime.date.today() -
     #                                                    datetime.timedelta(d)).strftime("%d-%b-%Y") + "--------------------------------")
     #    main(d, 30)
-    main()
+    main(29,30)

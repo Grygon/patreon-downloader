@@ -44,7 +44,7 @@ class ParseSession():
             if not req.ok:
                 print("Unable to access URL: " + self.url)
                 if not 'x-patreon-uuid' in req.headers:
-                    raise Exception("You hit a Cloudflare CAPTCHA. Please open the URL in your browser, wait a while, and try later.")
+                    raise CaptchaError("You hit a Cloudflare CAPTCHA. Please open the URL in your browser, wait a while, and try later.")
                 return
 
             is_redir = req.is_redirect
@@ -275,3 +275,7 @@ class obj:
 
 def dict2obj(dict1):
     return json.loads(json.dumps(dict1), object_hook=obj)
+
+class CaptchaError(Exception):
+    '''Raise this when we hit a Captcha'''
+    pass

@@ -126,12 +126,12 @@ class ScrapeSession():
     def handle_download(self, post_data):
         for post in post_data:
             try:
-                print_data(post)
+                self.print_data(post)
                 
                 downloader = None
                 
                 for i in range(len(post["links"])):
-                    downloader = DownloadHandler(session)
+                    downloader = DownloadHandler(self.scraper)
                     downloader.author = post["author"]
                     downloader.post = post["title"]
                     downloader.post_type = post["type"]
@@ -141,7 +141,7 @@ class ScrapeSession():
                         post["links"][i] = [post["links"][i], "Failed"]
 
                 if not (downloader is None):
-                    create_shortcut({
+                    self.create_shortcut({
                         'url': post['url'], 
                         'folder': downloader.post_dir,
                         'post': sanitize_filename(post['title'])
